@@ -1,0 +1,102 @@
+import cairo, random, math, string, datetime, PIL
+from PIL import Image
+import datetime
+
+#setting up the 'canvas' with the image surface and context, at given size
+WIDTH, HEIGHT = 750,750
+surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
+ctx = cairo.Context(surface)
+ctx.scale(WIDTH,HEIGHT)
+
+#background fill
+ctx.rectangle(0,0,1,1)
+ctx.set_source_rgb(0,0,0)
+ctx.fill()
+
+#drawing stars - random size within range, random positions, all white and circular
+x=random.randint(50,300)
+for i in range(x):
+    ctx.set_source_rgb(1,1,1)
+    ctx.arc(random.uniform(0,1),random.uniform(0,1),random.uniform(0.001,0.005),0,math.pi*2)
+    ctx.fill()
+
+#drawing planets in sky - random colours, random size within range, random positions
+for i in range(0,3):
+    ctx.set_source_rgb(random.uniform(0,1),random.uniform(0,1),random.uniform(0,1))
+    ctx.arc(random.uniform(0,1),random.uniform(0,1),random.uniform(0.03,0.15),0,math.pi*2)
+    ctx.fill()
+
+
+#drawing land at bottom of image - random colour
+ctx.arc(0.5,1.9,1.2,0,math.pi*2)
+ctx.set_source_rgb(random.uniform(0,1),random.uniform(0,1),random.uniform(0,1))
+ctx.fill()
+
+#drawing frame - makes it look like a polaroid
+ctx.rectangle(0,0,0.07,1)
+ctx.set_source_rgb(1,1,1)
+ctx.rectangle(0.93,0,0.07,1)
+ctx.set_source_rgb(1,1,1)
+ctx.rectangle(0,0,1,0.07)
+ctx.set_source_rgb(1,1,1)
+ctx.rectangle(0,0.8,1,1)
+ctx.set_source_rgb(1,1,1)
+ctx.fill()
+
+#adding caption
+#selecting a random date from the distant future to be the main caption
+start_date = datetime.date(2500,1,1)
+end_date = datetime.date(6000,1,1)
+between = end_date - start_date
+days_between = between.days
+rand_days = random.randrange(days_between)
+rand_date = start_date + datetime.timedelta(days = rand_days)
+random_date_split = str(rand_date).split("-")
+#messages to be written after the date, also likely to be left blank
+message = random.choice(["",random.choice(["- Wish you were here!","- Missing you","- Just landed!","- Clear sky","- Weather's been good","- Last day on this planet",
+    "- Should be home soon"])])
+
+#function adds the text to the current image
+def add_caption():
+    date = "{}/{}/{}".format(rand_date.day, rand_date.month, rand_date.year, message)
+    ctx.set_source_rgb(0, 0, 0)
+    ctx.set_font_size(0.065)
+    ctx.select_font_face("Hey August",
+                         cairo.FONT_SLANT_NORMAL,
+                         cairo.FONT_WEIGHT_NORMAL)
+    ctx.move_to(0.07, 0.91)
+    ctx.show_text(date)
+
+add_caption()
+
+#saves as an image with the datetime for identifying when making many at once
+datetime_str = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+file_name = "alien_sky_{}.png".format(datetime_str)
+
+surface.write_to_png(file_name)
+
+#-----texturising/adding noise with pillow module
+pil_img = Image.open(file_name)
+pixels = pil_img.load()
+
+#function will be used to get a random number within range either side of current pixel's rgb values
+float_gen = lambda a,b: random.uniform(a,b)
+#noise amount effectively out of 1, works well at around 0.1 or slightly higher
+noise_amount = 0.1
+#loops through each pixel and applies noise
+for i in range(pil_img.size[0]):
+    for j in range(pil_img.size[1]):
+        #assigns rgb values of current pixel
+        r, g, b = pixels[i, j]
+        #randomish noise for the individual pixel generated
+        noise = float_gen(1.0 - noise_amount, 1.0 + noise_amount)
+        #checks if pixel is white (polaroid frame and stars) and keeps them free of noise
+        if r==255 and g==255 and b == 255:
+            pass
+        #resets the rgb values of each pixel,
+        else:
+            #noise for the pixel applied, rgb values adjusted
+            pixels[i, j] = (int(r*noise), int(g*noise), int(b*noise))
+
+#saves the textured image separately
+pil_img.save(file_name.replace(".png","")+"_texture.png")
